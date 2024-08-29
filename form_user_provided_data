@@ -1,0 +1,94 @@
+<script>
+(function() {
+    function getRootDomain() {
+        var parts = location.hostname.split('.');
+        if (parts.length > 2) {
+            return '.' + parts.slice(-2).join('.');
+        }
+        return location.hostname;
+    }
+
+    function safeExecute(fn) {
+        try {
+            return fn();
+        } catch (error) {
+            // Error caught and silently ignored
+        }
+    }
+
+    function captureInput(inputField, cookieName) {
+        safeExecute(function() {
+            var value = inputField.value.trim();
+            var rootDomain = getRootDomain();
+            var encodedValue = (cookieName === 'email' || cookieName === 'phone') ? value : encodeURIComponent(value);
+            var cookieString = cookieName + '=' + encodedValue + '; path=/; domain=' + rootDomain + '; SameSite=Lax';
+            if (location.protocol === 'https:') {
+                cookieString += '; Secure';
+            }
+            if (value) {
+                document.cookie = cookieString;
+            } else {
+                document.cookie = cookieName + '=; path=/; domain=' + rootDomain + '; max-age=0';
+            }
+        });
+    }
+
+    function getCookie(name) {
+        return safeExecute(function() {
+            var value = '; ' + document.cookie;
+            var parts = value.split('; ' + name + '=');
+            if (parts.length === 2) {
+                var cookieValue = parts.pop().split(';').shift();
+                return (name === 'email' || name === 'phone') ? cookieValue : decodeURIComponent(cookieValue);
+            }
+            return null;
+        });
+    }
+
+    function setupInputCapture(inputField, cookieName) {
+        safeExecute(function() {
+            if (inputField) {
+                inputField.addEventListener('input', function() {
+                    captureInput(inputField, cookieName);
+                });
+                inputField.addEventListener('change', function() {
+                    captureInput(inputField, cookieName);
+                });
+                captureInput(inputField, cookieName);
+            }
+        });
+    }
+
+    function setupUserInfoCaptures() {
+        safeExecute(function() {
+            var selectors = {
+                firstName: 'input[name="first_name"], input[placeholder="First Name"]',
+                lastName: 'input[name="last_name"], input[placeholder="Last Name"]',
+                email: 'input[type="email"], input[name="email"]',
+                phone: 'input[type="tel"], input[type="phone_number"], input[name="phone"]'
+            };
+            for (var cookieName in selectors) {
+                if (selectors.hasOwnProperty(cookieName)) {
+                    var inputField = document.querySelector(selectors[cookieName]);
+                    if (inputField) {
+                        setupInputCapture(inputField, cookieName);
+                    }
+                }
+            }
+        });
+    }
+
+    function init() {
+        setupUserInfoCaptures();
+        setInterval(setupUserInfoCaptures, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    window.getCookie = getCookie;
+})();
+</script>
